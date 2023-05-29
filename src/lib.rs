@@ -5,9 +5,61 @@ use std::{
 };
 
 pub fn run() {
-    if let Err(e) = day3::run_part2() {
+    if let Err(e) = day4::run_part2() {
         eprintln!("Application Error: {e}");
         std::process::exit(1);
+    }
+}
+// https://adventofcode.com/2022/day/4
+// part1 = 518
+// part2 != 811 (too low) :: was editing wrong run function
+// part2 = 909
+pub mod day4 {
+    use std::{error::Error, fs};
+
+    pub fn run_part1() -> Result<u32, Box<dyn Error>> {
+        let contents = fs::read_to_string("/home/kenny/code-exercises/aoc/rust-aoc/data/4_input")?;
+        let mut n_fully_contained = 0;
+
+        for line in contents.lines() {
+            let ranges = parse_ranges(line).unwrap();
+            println!("{:?}", ranges);
+            let (range_a, range_b) = (ranges[0], ranges[1]);
+            if (range_a[0] >= range_b[0] && range_a[1] <= range_b[1])
+                || (range_b[0] >= range_a[0] && range_b[1] <= range_a[1])
+            {
+                n_fully_contained += 1;
+            }
+        }
+        println!("{n_fully_contained}");
+        Ok(n_fully_contained)
+    }
+
+    pub fn run_part2() -> Result<u32, Box<dyn Error>> {
+        let contents = fs::read_to_string("/home/kenny/code-exercises/aoc/rust-aoc/data/4_input")?;
+        let mut n_overlaps = 0;
+
+        for line in contents.lines() {
+            let ranges = parse_ranges(line).unwrap();
+            println!("{:?}", ranges);
+            let (range_a, range_b) = (ranges[0], ranges[1]);
+            if range_a[0] <= range_b[1] && range_a[1] >= range_b[0] {
+                n_overlaps += 1;
+            }
+        }
+        println!("{n_overlaps}");
+        Ok(n_overlaps)
+    }
+
+    fn parse_ranges(line: &str) -> Result<Vec<[u32; 2]>, std::num::ParseIntError> {
+        line.split(",")
+            .map(|range| {
+                let mut nums = range.split("-").map(|num| num.parse::<u32>());
+                let a = nums.next().unwrap()?;
+                let b = nums.next().unwrap()?;
+                Ok([a, b])
+            })
+            .collect()
     }
 }
 
