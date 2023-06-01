@@ -1,16 +1,125 @@
-use std::{
-    fs::{self, File},
-    io::{self, BufRead},
-    path::Path,
-};
-
 pub fn run() {
-    if let Err(e) = day5::run_part2() {
+    if let Err(e) = day7::run_part1() {
         eprintln!("Application Error: {e}");
         std::process::exit(1);
     }
 }
 
+pub mod day7 {
+    use std::{
+        collections::HashMap,
+        error::Error,
+        fs,
+        path::{Path, PathBuf},
+    };
+
+    #[derive(Debug)]
+    struct DirData {
+        size: u32,
+        subdirs: Vec<String>,
+    }
+
+    pub fn run_part1() -> Result<(), Box<dyn Error>> {
+        // The two primary data structure are:
+        //  - HashMap: key=path_to_dir (string), value=DirData struct: tuple
+        //  containing total size and a vector of subdirectories' paths
+
+        // Cautions: dir names non-unique => paths are unique
+
+        // Assumptions:
+        // - directories are only ls'ed once, can make a check to verify truth
+        // - ls is not executed on the same dir more than once
+
+        // Data inspection:
+        // - cd to root happens once, at beginning of input
+        // - cd cmds only move up/down one level
+
+        let contents = fs::read_to_string("/home/kenny/code-exercises/aoc/rust-aoc/data/7_input")?;
+        let mut map: HashMap<Box<Path>, DirData> = HashMap::new();
+        let mut cwd = PathBuf::new();
+
+        // TODO, every line_file match, +size to ancestors to cwd
+        for line in contents.lines().take(33) {
+            println!("line: {}      cwd: {:?}", line, cwd);
+            match line {
+                line_cmd if line_cmd.starts_with("$") => {
+                    parse_and_act_cmd(&mut cwd, line_cmd, &mut map)
+                }
+                line_dir if line_dir.starts_with("dir") => {
+                    let mut line_dir = line_dir.split(" ");
+                    line_dir.next();
+                    let dir = line_dir.next().unwrap().to_string();
+
+                    // since a line containing "dir" dir_name must happen after an ls, no need to or_insert
+                    map.entry(cwd.clone().into_boxed_path())
+                        .and_modify(|e| e.subdirs.push(dir.clone()));
+                }
+                line_file => {
+                    let size = line_file.split(" ").next().unwrap().parse::<u32>().unwrap();
+
+                    // since a line containing file_size file_name must happen after an ls, no need to or_insert
+                    map.entry(cwd.clone().into_boxed_path())
+                        .and_modify(|e| e.size += size);
+                }
+            }
+        }
+        // println!("{:?}", map.keys());
+        // println!("{:?}", map.values());
+        println!("{:?}", map);
+
+        Ok(())
+    }
+
+    fn parse_and_act_cmd(cwd: &mut PathBuf, cmd_line: &str, map: &mut HashMap<Box<Path>, DirData>) {
+        let cmd_line: Vec<&str> = cmd_line.split(" ").collect();
+        let cmd = cmd_line[1];
+
+        if cmd == "ls" {
+            // if this cmd is executed for a cwd more than once, FLAG IT or handle it (don't +size)
+            map.entry(cwd.clone().into_boxed_path()).or_insert(DirData {
+                size: 0,
+                subdirs: Vec::new(),
+            });
+        } else if cmd == "cd" {
+            cwd.push(cmd_line[2]);
+        }
+    }
+}
+
+// part1 != 1357 too low (off by 1 error?) , != 1358 (forgot to return position of last char in chunk)
+// part1 == 1361
+// part2 == 3263
+pub mod day6 {
+    use std::{collections::HashSet, error::Error, fs};
+
+    pub fn run_part1() -> Result<(), Box<dyn Error>> {
+        let contents = fs::read_to_string("/home/kenny/code-exercises/aoc/rust-aoc/data/6_input")?;
+        let n_unique_chars = 14;
+        find_position_unique_marker(&contents, n_unique_chars)?;
+        Ok(())
+    }
+
+    pub fn find_position_unique_marker(
+        contents: &str,
+        n_unique_chars: usize,
+    ) -> Result<usize, Box<dyn Error>> {
+        for (i, chunk) in contents
+            .chars()
+            .collect::<Vec<char>>()
+            .windows(n_unique_chars)
+            .enumerate()
+        {
+            let mut seen = HashSet::new();
+            let mut mchunk = chunk.to_vec();
+            mchunk.retain(|c| seen.insert(*c));
+            if mchunk.len() == n_unique_chars {
+                println!("{} : {:?}", i + n_unique_chars, mchunk);
+                return Ok(i + n_unique_chars);
+            }
+        }
+        Ok(1)
+    }
+}
 // part1 != TVMFBQTNS TVMFBQTDS
 // part1 = FRDSQRRCD
 // part2 = HRFTQVWNN
@@ -349,6 +458,12 @@ pub mod day1 {
         Ok(total)
     }
 }
+
+use std::{
+    fs::{self, File},
+    io::{self, BufRead},
+    path::Path,
+};
 
 fn _read_lines_from_file_buffered<P>(filename: P) -> io::Result<Vec<String>>
 where
