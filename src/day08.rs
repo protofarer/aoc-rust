@@ -10,9 +10,11 @@ use std::io::BufRead;
 // - iterate by tree, check against strip of trees about each cardinal direction
 fn part1(input: &mut dyn BufRead) -> String {
     let grid = create_grid(input);
-    let mut n_visible = 0;
+
     let width = grid.len();
     let height = grid[0].len();
+    let mut n_visible = 0;
+
     for row in 1..width - 1 {
         for col in 1..height - 1 {
             if is_visible(&grid, col, row) {

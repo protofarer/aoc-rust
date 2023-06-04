@@ -6,7 +6,7 @@ use std::{
     time::Instant,
 };
 
-use rust_aoc::{day01, day02, day03, day04, day05, day06, day07, day08, Solver};
+use rust_aoc::{day01, day02, day03, day04, day05, day06, day07, day08, day09, Solver};
 
 #[derive(Parser, Debug)]
 struct Args {
@@ -109,7 +109,7 @@ fn get_day(day: u8) -> &'static [Solver] {
         6 => day06::SOLVERS,
         7 => day07::SOLVERS,
         8 => day08::SOLVERS,
-        // 9 => day09::SOLVERS,
+        9 => day09::SOLVERS,
         // 10 => day10::SOLVERS,
         // 11 => day11::SOLVERS,
         // 12 => day12::SOLVERS,
