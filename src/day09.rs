@@ -4,6 +4,7 @@
 // != 3096 (too low :: off-by-1, need to count init pos initially since it may not cross back over in position)
 // != 3097 (too low :: forced a +1, but input already covers init pos since tail crosses back over it)
 // == 6290 wasn't reading double digit move mangitudes!!!!!!!!! use split instead of chars + next'ing
+// part2 == 2460 (one shot!)
 
 // ? CSDR refactor into a `Rope` struct and behavior
 
@@ -57,7 +58,7 @@ impl Rope {
     fn new(init_pos: Position) -> Self {
         let mut set: HashSet<Position> = HashSet::new();
         set.insert(init_pos);
-        Rope {
+        Self {
             head: init_pos,
             tail: init_pos,
             distinct_path: set,
@@ -101,7 +102,6 @@ impl Rope {
         self.distinct_path.insert(self.tail); // this is a copy, since HashSet is supposed to contain values not references
     }
 }
-
 impl fmt::Display for Rope {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
@@ -120,8 +120,7 @@ fn read_move_line(line: &str) -> anyhow::Result<Movement> {
         "L" => L,
         "R" => R,
         _ => {
-            eprintln!("Invalid movement char in input");
-            return Err(anyhow!("bad input char for movement"));
+            return Err(anyhow!("bad input string for movement"));
         }
     };
     let n: usize = words[1].parse().unwrap();
@@ -129,7 +128,103 @@ fn read_move_line(line: &str) -> anyhow::Result<Movement> {
 }
 
 fn part2(input: &mut dyn BufRead) -> String {
-    "ok".into()
+    let input_str = get_string_from_input(input);
+
+    let mut rope: Rope2 = Rope2::new(INIT_POS, 9);
+
+    for (i, line) in input_str.lines().enumerate() {
+        // println!("{i}:{:?}", line);
+        let movement = read_move_line(line).unwrap();
+        rope.move_rope(movement);
+        // println!("{}", rope);
+    }
+
+    let len = rope.get_distinct_path_len();
+    println!("distinct_path.len: {}", len);
+    len.to_string()
+}
+#[derive(Debug)]
+struct Rope2 {
+    head: Position,
+    knots: Vec<Position>,
+    distinct_path: HashSet<Position>,
+}
+
+impl Rope2 {
+    fn new(init_pos: Position, n_knots: usize) -> Self {
+        let mut set: HashSet<Position> = HashSet::new();
+        set.insert(init_pos);
+        let mut knots: Vec<Position> = vec![init_pos; n_knots];
+        Self {
+            head: init_pos,
+            knots,
+            distinct_path: set,
+        }
+    }
+
+    fn get_distinct_path_len(&self) -> usize {
+        self.distinct_path.len()
+    }
+
+    fn move_rope(&mut self, movement: Movement) {
+        for i in 0..movement.1 {
+            match movement.0 {
+                U => self.head.1 = self.head.1 + 1 as isize,
+                D => self.head.1 = self.head.1 - 1 as isize,
+                R => self.head.0 = self.head.0 + 1 as isize,
+                L => self.head.0 = self.head.0 - 1 as isize,
+            }
+            self.move_knots();
+        }
+    }
+
+    fn move_knots(&mut self) {
+        let dx = self.head.0 as isize - self.knots[0].0 as isize;
+        let dy = self.head.1 as isize - self.knots[0].1 as isize;
+        if dx.abs() <= 1 && dy.abs() <= 1 {
+            return;
+        }
+        self.knots[0].0 = match dx {
+            dx if dx > 0 => self.knots[0].0 + 1,
+            dx if dx < 0 => self.knots[0].0 - 1,
+            dx if dx == 0 => self.knots[0].0,
+            _ => unreachable!("value of dx produced an error state"),
+        };
+        self.knots[0].1 = match dy {
+            dy if dy > 0 => self.knots[0].1 + 1,
+            dy if dy < 0 => self.knots[0].1 - 1,
+            dy if dy == 0 => self.knots[0].1,
+            _ => unreachable!("value of dy produced an error state"),
+        };
+
+        for i in 1..self.knots.len() {
+            let dx = self.knots[i - 1].0 as isize - self.knots[i].0 as isize;
+            let dy = self.knots[i - 1].1 as isize - self.knots[i].1 as isize;
+            if dx.abs() <= 1 && dy.abs() <= 1 {
+                return;
+            }
+            self.knots[i].0 = match dx {
+                dx if dx > 0 => self.knots[i].0 + 1,
+                dx if dx < 0 => self.knots[i].0 - 1,
+                dx if dx == 0 => self.knots[i].0,
+                _ => unreachable!("value of dx produced an error state"),
+            };
+            self.knots[i].1 = match dy {
+                dy if dy > 0 => self.knots[i].1 + 1,
+                dy if dy < 0 => self.knots[i].1 - 1,
+                dy if dy == 0 => self.knots[i].1,
+                _ => unreachable!("value of dy produced an error state"),
+            };
+        }
+        self.distinct_path
+            .insert(self.knots.last().unwrap().clone()); // this is a copy, since HashSet is supposed to contain values not references
+    }
+}
+
+impl fmt::Display for Rope2 {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "H{}\n{:?}", self.head, self.knots)
+    }
 }
 
 use assert_fs::prelude::*;
@@ -198,4 +293,16 @@ fn triple_digit_move() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+#[test]
+fn part2_big_example() -> Result<(), Box<dyn std::error::Error>> {
+    let file = assert_fs::NamedTempFile::new("sample.txt")?;
+    file.write_str("R 5\nU 8\nL 8\nD 3\nR 17\nD 10\nL 25\nU 20\n")?;
+    let file = File::open(file.path())?;
+
+    let mut reader = BufReader::new(file);
+
+    assert_eq!(part2(&mut reader), "36");
+
+    Ok(())
+}
 pub const SOLVERS: &[Solver] = &[part1, part2];
